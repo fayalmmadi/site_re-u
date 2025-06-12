@@ -1,28 +1,44 @@
-const fetch = require('node-fetch');
+const { createClient } = require('@supabase/supabase-js');
 
-exports.handler = async (event) => {
-  const { chauffeur_id, date, heure, montant } = JSON.parse(event.body);
+// Initialiser Supabase avec les variables d'environnement
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE
+);
 
-  const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/passagers`, {
-    method: 'POST',
-    headers: {
-      apikey: process.env.SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation'
-    },
-    body: JSON.stringify({
-      chauffeur_id,
-      nombre_passagers: 1,
-      date,
-      heure,
-      montant
-    })
-  });
+// Fonction principale de la Netlify Function
+exports.handler = async (event, context) => {
+  try {
+    // Récupérer les données JSON envoyées (ID chauffeur, date, heure, montant)
+    const { chauffeur_id, date, heure, montant } = JSON.parse(event.body);
 
-  const data = await response.json();
-  return {
-    statusCode: response.status,
-    body: JSON.stringify(data)
-  };
+    // Insertion dans la table 'passagers'
+    const { error } = await supabase
+      .from('passagers')
+      .insert([{ chauffeur_id, nombre_passagers: 1, date, heure, montant }]);
+
+    // Gérer les erreurs
+    if (error) {
+      return {
+        statusCode: 401,
+        body: JSON.stringify({
+          message: 'Erreur Supabase',
+          erreur: error.message,
+          details: error.details || null,
+        }),
+      };
+    }
+
+    // Succès
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ message: 'Insertion réussie' }),
+    };
+  } catch (e) {
+    // Gérer les erreurs de parsing JSON ou erreurs internes
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: 'Erreur serveur', erreur: e.message }),
+    };
+  }
 };
