@@ -6,6 +6,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE
 );
 
+console.log("SUPABASE_URL =", process.env.SUPABASE_URL);
+console.log("SERVICE_ROLE =", process.env.SUPABASE_SERVICE_ROLE);
+
 // Fonction principale de la Netlify Function
 exports.handler = async (event, context) => {
   try {
