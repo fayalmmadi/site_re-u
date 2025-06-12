@@ -14,6 +14,7 @@ exports.handler = async (event, context) => {
   try {
     // Récupérer les données JSON envoyées (ID chauffeur, date, heure, montant)
     const { chauffeur_id, date, heure, montant } = JSON.parse(event.body);
+    console.log("Données reçues :", { chauffeur_id, date, heure, montant });
 
     // Insertion dans la table 'passagers'
     const { error } = await supabase
