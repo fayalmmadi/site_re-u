@@ -1,48 +1,49 @@
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialiser Supabase avec les variables d'environnement
+console.log("Initialisation Supabase...");
+console.log("SUPABASE_URL =", process.env.SUPABASE_URL);
+console.log("SERVICE_ROLE =", process.env.SUPABASE_SERVICE_ROLE);
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE
 );
 
-console.log("SUPABASE_URL =", process.env.SUPABASE_URL);
-console.log("SERVICE_ROLE =", process.env.SUPABASE_SERVICE_ROLE);
-
-// Fonction principale de la Netlify Function
 exports.handler = async (event, context) => {
   try {
-    // Récupérer les données JSON envoyées (ID chauffeur, date, heure, montant)
+    console.log("🟡 Requête reçue : ", event.body);
     const { chauffeur_id, date, heure, montant } = JSON.parse(event.body);
-    console.log("Données reçues :", { chauffeur_id, date, heure, montant });
 
-    // Insertion dans la table 'passagers'
+    console.log("🟢 Données à insérer :", { chauffeur_id, date, heure, montant });
+
     const { error } = await supabase
       .from('passagers')
       .insert([{ chauffeur_id, nombre_passagers: 1, date, heure, montant }]);
 
-    // Gérer les erreurs
     if (error) {
+      console.error("🔴 Erreur Supabase :", error);
       return {
         statusCode: 401,
         body: JSON.stringify({
-          message: 'Erreur Supabase',
+          message: "Erreur Supabase",
           erreur: error.message,
-          details: error.details || null,
+          details: error.details,
         }),
       };
     }
 
-    // Succès
+    console.log("✅ Insertion réussie");
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Insertion réussie' }),
+      body: JSON.stringify({ message: "Insertion réussie" }),
     };
-  } catch (e) {
-    // Gérer les erreurs de parsing JSON ou erreurs internes
+
+  } catch (err) {
+    console.error("❌ Erreur interne :", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: 'Erreur serveur', erreur: e.message }),
+      body: JSON.stringify({ message: "Erreur interne", erreur: err.message }),
     };
   }
 };
