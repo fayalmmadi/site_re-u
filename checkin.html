@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Reçu de montée</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background-color: #f4f4f4;
+      text-align: center;
+    }
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      display: inline-block;
+      margin-top: 30px;
+    }
+    button {
+      background-color: #2e7d32;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      margin-top: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>🟢 Reçu de montée</h2>
+  <div id="recu">Chargement...</div>
+
+  <script>
+    // Récupération des paramètres d’URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const chauffeurId = urlParams.get('chauffeurId');
+    const valid = urlParams.get('valid');
+
+    const now = new Date();
+    const today = now.toISOString().substring(0, 10);
+    const heure = now.toTimeString().substring(0, 8);
+
+    // Affichage visuel du reçu
+    document.getElementById('recu').innerHTML = `
+      <div class="box">
+        <p><strong>ID Chauffeur :</strong> ${chauffeurId}</p>
+        <p><strong>Date :</strong> ${today}</p>
+        <p><strong>Heure :</strong> ${heure}</p>
+        <p><strong>Mois de validité :</strong> ${valid}</p>
+        <p>✅ Vous êtes bien monté dans le taxi.</p>
+        <button onclick="window.print()">Télécharger / Imprimer le reçu</button>
+      </div>
+    `;
+
+    // Logs de débogage
+    console.log("➡️ Début insertion Supabase");
+    console.log("chauffeur_id =", chauffeurId);
+    console.log("date =", today);
+    console.log("heure =", heure);
+
+    // Requête vers fonction Netlify
+    fetch('/.netlify/functions/add_passager', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chauffeur_id: chauffeurId,
+        nombre_passagers: 1,
+        date: today,
+        heure: heure,
+        montant: 0
+     })
+   })
+   .then(res => {
+     if (!res.ok) {
+       throw new Error("Erreur insertion : " + res.status);
+     }
+     return res.json();
+   })
+   .then(data => {
+     console.log("✅ Insertion OK :", data);
+   })
+   .catch(err => {
+     console.error("❌ Erreur insertion :", err);
+     alert("Erreur insertion : " + err.message);
+   });
+
+  </script>
+</body>
+</html>
+
