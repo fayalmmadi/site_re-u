@@ -32,7 +32,7 @@
       throw new Error("Page rechargée : blocage");
     }
 
-    const chauffeurId = new URLSearchParams(window.location.search).get('chauffeur_id') || '';
+    const chauffeurId = new URLSearchParams(window.location.search).get('chauffeurId') || '';
 
     if (!chauffeurId) {
       document.getElementById('message').textContent = '❌ Erreur : Aucun identifiant chauffeur trouvé.';
