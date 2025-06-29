@@ -1,92 +1,107 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Reçu de montée</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Enregistrement du Passager</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 30px;
-      background-color: #f4f4f4;
       text-align: center;
+      padding: 50px;
+      background-color: #f8f9fa;
     }
-    .box {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      display: inline-block;
+    h1 {
+      color: #2c3e50;
+    }
+    #message {
       margin-top: 30px;
-    }
-    button {
-      background-color: #2e7d32;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      margin-top: 10px;
-      border-radius: 5px;
-      cursor: pointer;
+      font-size: 1.2em;
+      color: #333;
     }
   </style>
 </head>
 <body>
-  <h2>🟢 Reçu de montée</h2>
-  <div id="recu">Chargement...</div>
+  <h1>Vérification en cours...</h1>
+  <div id="message">Merci de patienter quelques secondes...</div>
 
   <script>
-    // Récupération des paramètres d’URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const chauffeurId = urlParams.get('chauffeurId');
-    const valid = urlParams.get('valid');
+    // ✅ Protection contre la double soumission sur actualisation
+    if (sessionStorage.getItem("passager_enregistre") === "true") {
+      document.getElementById("message").textContent = "✅ Vous êtes déjà enregistré. (Actualisation bloquée)";
+      throw new Error("Page rechargée : blocage");
+    }
+
+    const chauffeurId = new URLSearchParams(window.location.search).get('chauffeur_id') || '';
+
+    if (!chauffeurId) {
+      document.getElementById('message').textContent = '❌ Erreur : Aucun identifiant chauffeur trouvé.';
+      throw new Error("Chauffeur ID manquant dans l'URL");
+    }
+
+    const uuid = localStorage.getItem('uuid') || crypto.randomUUID();
+    localStorage.setItem('uuid', uuid);
 
     const now = new Date();
-    const today = now.toISOString().substring(0, 10);
-    const heure = now.toTimeString().substring(0, 8);
+    const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const heure = now.toTimeString().slice(0, 8); // HH:MM:SS
 
-    // Affichage visuel du reçu
-    document.getElementById('recu').innerHTML = `
-      <div class="box">
-        <p><strong>ID Chauffeur :</strong> ${chauffeurId}</p>
-        <p><strong>Date :</strong> ${today}</p>
-        <p><strong>Heure :</strong> ${heure}</p>
-        <p><strong>Mois de validité :</strong> ${valid}</p>
-        <p>✅ Vous êtes bien monté dans le taxi.</p>
-        <button onclick="window.print()">Télécharger / Imprimer le reçu</button>
-      </div>
-    `;
+    fetch('https://api64.ipify.org?format=json')
+      .then(res => res.json())
+      .then(({ ip }) => {
+        // Étape 1 : Vérification doublon ou délai
+        return fetch('/.netlify/functions/add_passager', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chauffeur_id: chauffeurId,
+            date: today,
+            uuid,
+            ip,
+            checkOnly: true
+          })
+        })
+        .then(res => res.json())
+        .then(response => {
+          if (response.status === 'exists') {
+            document.getElementById('message').textContent = '🚫 Vous avez déjà été enregistré aujourd’hui.';
+            return;
+          }
+          if (response.status === 'too_soon') {
+            document.getElementById('message').textContent = '⏱️ Vous avez scanné il y a moins de 15 minutes.';
+            return;
+          }
 
-    // Logs de débogage
-    console.log("➡️ Début insertion Supabase");
-    console.log("chauffeur_id =", chauffeurId);
-    console.log("date =", today);
-    console.log("heure =", heure);
+          // Étape 2 : Insertion réelle
+          const donnees = {
+            chauffeur_id: chauffeurId,
+            date: today,
+            heure: heure,
+            montant: 0,
+            uuid: uuid,
+            ip: ip,
+            nombre_passagers: 1
+          };
 
-    // Requête vers fonction Netlify
-    fetch('/.netlify/functions/add_passager', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chauffeur_id: chauffeurId,
-        nombre_passagers: 1,
-        date: today,
-        heure: heure,
-        montant: 0
-     })
-   })
-   .then(res => {
-     if (!res.ok) {
-       throw new Error("Erreur insertion : " + res.status);
-     }
-     return res.json();
-   })
-   .then(data => {
-     console.log("✅ Insertion OK :", data);
-   })
-   .catch(err => {
-     console.error("❌ Erreur insertion :", err);
-     alert("Erreur insertion : " + err.message);
-   });
-
+          return fetch('/.netlify/functions/add_passager?cachebuster=' + Date.now(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(donnees)
+          }).then(res => res.json()).then(data => {
+            document.getElementById('message').textContent = '✅ Enregistrement réussi. Merci !';
+            sessionStorage.setItem("passager_enregistre", "true"); // 🔒 Empêche rechargement
+          });
+        });
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('message').textContent = '❌ Erreur lors du traitement. Réessayez.';
+      });
   </script>
 </body>
 </html>
+
+
+
+
 
