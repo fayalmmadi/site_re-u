@@ -40,7 +40,7 @@ exports.handler = async (event, context) => {
     const { data: recentScan } = await supabase
       .from('passagers')
       .select('created_at')
-      .eq('ip', ip)
+      .eq('uuid', uuid)
       .eq('chauffeur_id', chauffeur_id)
       .gte('created_at', fifteenMinAgo)
       .maybeSingle();
