@@ -8,51 +8,51 @@ const supabase = createClient(
 exports.handler = async (event, context) => {
   try {
     const body = JSON.parse(event.body);
-    const isCheckOnly = body.checkOnly == true;
+    const isCheckOnly = body.checkOnly === true;
 
-    // ✅ On récupère IP depuis le body ou depuis le header
     const ip = body.ip || event.headers['x-forwarded-for'] || '0.0.0.0';
+    const { voiture_id, date, heure, montant, uuid } = body;
 
-    // ✅ On récupère le reste normalement
-    const { chauffeur_id, date, heure, montant, uuid } = body;
+    console.log("📦 Données reçues :", { voiture_id, date, heure, montant, uuid, ip, isCheckOnly });
 
-    console.log("📦 Données reçues :", { chauffeur_id, date, heure, montant, uuid, ip, isCheckOnly });
-
-    // 1️⃣ Vérifie si ce passager a déjà scanné aujourd’hui
-    const { data: existing } = await supabase
-      .from('passagers')
-      .select('id')
-      .eq('uuid', uuid)
-      .eq('date', date)
-      .maybeSingle();
-
-    if (existing) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ status: 'exists' }),
-      };
-    }
-
-    // 2️⃣ Vérifie si cette IP a scanné ce chauffeur dans les 15 dernières minutes
+    // 1️⃣ Vérifie si cette IP a scanné CETTE voiture dans les 2 dernières minutes
     const now = new Date();
-    const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+    const twoMinAgo = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
 
-    const { data: recentScan } = await supabase
+    const { data: recentShortScan } = await supabase
       .from('passagers')
       .select('created_at')
       .eq('uuid', uuid)
-      .eq('chauffeur_id', chauffeur_id)
-      .gte('created_at', fifteenMinAgo)
+      .eq('voiture_id', voiture_id)
+      .gte('created_at', twoMinAgo)
       .maybeSingle();
 
-    if (recentScan) {
+    if (recentShortScan) {
       return {
         statusCode: 200,
         body: JSON.stringify({ status: 'too_soon' }),
       };
     }
 
-    // 3️⃣ Si checkOnly, ne fais pas l'insertion
+    // 2️⃣ Vérifie si cette IP a scanné CETTE voiture dans les 15 dernières minutes
+    const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+
+    const { data: recentLongScan } = await supabase
+      .from('passagers')
+      .select('created_at')
+      .eq('uuid', uuid)
+      .eq('voiture_id', voiture_id)
+      .gte('created_at', fifteenMinAgo)
+      .maybeSingle();
+
+    if (recentLongScan) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ status: 'too_soon' }),
+      };
+    }
+
+    // 3️⃣ Si checkOnly, ne fais pas d'insertion
     if (isCheckOnly) {
       return {
         statusCode: 200,
@@ -60,9 +60,9 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 4️⃣ Insertion du passager
+    // 4️⃣ Insertion
     const { error } = await supabase.from('passagers').insert([{
-      chauffeur_id,
+      voiture_id,
       date,
       heure,
       montant,

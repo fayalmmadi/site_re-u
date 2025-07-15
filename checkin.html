@@ -59,10 +59,10 @@
       throw new Error("Page rechargée = blocage");
     }
 
-    const chauffeurId = new URLSearchParams(window.location.search).get('chauffeurId') || '';
-    if (!chauffeurId) {
-      document.getElementById("message").textContent = "❌ Erreur : Aucun identifiant chauffeur trouvé.";
-      throw new Error("Chauffeur ID manquant dans l'URL");
+    const voitureId = new URLSearchParams(window.location.search).get('voiture_id') || '';
+    if (!voitureId) {
+      document.getElementById("message").textContent = "❌ Erreur : Aucun identifiant voiture trouvé.";
+      throw new Error("Voiture ID manquant dans l'URL");
     }
 
     const uuid = localStorage.getItem("uuid") || crypto.randomUUID();
@@ -82,7 +82,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            chauffeur_id: chauffeurId,
+            voiture_id: voitureId,
             date: today,
             uuid,
             ip,
@@ -101,7 +101,7 @@
 
             // Étape 2 : Enregistrement
             const donnees = {
-              chauffeur_id: chauffeurId,
+              voiture_id: voitureId,
               date: today,
               heure,
               montant: 0,
@@ -125,7 +125,7 @@
             document.getElementById("recu").innerHTML = `
               <div class="recu">
                 <h2>🧾 Reçu de montée</h2>
-                <p><strong>ID Chauffeur :</strong> ${chauffeurId}</p>
+                <p><strong>ID Voiture :</strong> ${voitureId}</p>
                 <p><strong>Date :</strong> ${today}</p>
                 <p><strong>Heure :</strong> ${heure}</p>
                 <p><strong>Mois de validité :</strong> ${moisValidite}</p>
