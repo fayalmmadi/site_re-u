@@ -69,18 +69,6 @@
           throw new Error("Voiture ID manquant dans l'URL");
         }
 
-        // ✅ Vérifie si la voiture existe dans Supabase
-        const { data: voiture, error } = await supabase
-          .from("voitures")
-          .select("*")
-          .eq("id", voitureId)
-          .single();
-
-        if (error || !voiture) {
-          document.getElementById("message").textContent = "❌ Erreur : Voiture non trouvée dans la base.";
-          throw new Error("Voiture non trouvée ou ID invalide");
-        }
-
         const uuid = localStorage.getItem("uuid") || crypto.randomUUID();
         localStorage.setItem("uuid", uuid);
 
