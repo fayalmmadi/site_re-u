@@ -69,20 +69,22 @@
           throw new Error("Voiture ID manquant dans l'URL");
         }
 
+        // Génère ou récupère UUID unique
         const uuid = localStorage.getItem("uuid") || crypto.randomUUID();
         localStorage.setItem("uuid", uuid);
 
+        // Date/heure actuelles
         const now = new Date();
         const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
         const heure = now.toTimeString().slice(0, 8); // HH:MM:SS
         const moisValidite = today.substring(0, 7); // YYYY-MM
 
-        // Récupération IP
+        // Récupère l'adresse IP publique
         const ipRes = await fetch("https://api64.ipify.org?format=json");
         const { ip } = await ipRes.json();
 
-        // Étape 1 : checkOnly
-        const res1 = await fetch('/.netlify/functions/add_passager', {
+        // Étape 1 - Vérification anti-doublon
+        const verif = await fetch('/.netlify/functions/add_passager', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -94,36 +96,37 @@
           })
         });
 
-        const response = await res1.json();
+        const verifRes = await verif.json();
 
-        if (response.status === "exists") {
+        if (verifRes.status === "exists") {
           document.getElementById("message").textContent = "❌ Vous avez déjà été enregistré aujourd’hui.";
           throw new Error("Déjà enregistré");
         }
-        if (response.status === "too_soon") {
+
+        if (verifRes.status === "too_soon") {
           document.getElementById("message").textContent = "⏳ Vous avez scanné il y a moins de 15 minutes.";
           throw new Error("Scan trop récent");
         }
 
-        // Étape 2 : Insertion
-        const donnees = {
-          voiture_id: voitureId,
-          date: today,
-          heure,
-          montant: 0,
-          uuid,
-          ip,
-          nombre_passagers: 1
-        };
-
-        const res2 = await fetch('/.netlify/functions/add_passager?cachebuster=' + Date.now(), {
+        // Étape 2 - Insertion du passager
+        const insertion = await fetch('/.netlify/functions/add_passager', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(donnees)
+          body: JSON.stringify({
+            voiture_id: voitureId,
+            date: today,
+            heure,
+            mois_validite: moisValidite,
+            uuid,
+            ip,
+            nombre_passagers: 1,
+            checkOnly: false
+          })
         });
 
-        const data = await res2.json();
+        const insertionRes = await insertion.json();
 
+        // ✅ Affichage du reçu
         sessionStorage.setItem("passager_enregistre", "true");
         document.getElementById("message").style.display = "none";
         document.getElementById("recu").style.display = "block";
@@ -150,6 +153,7 @@
   </script>
 </body>
 </html>
+
 
 
 
