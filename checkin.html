@@ -56,42 +56,46 @@
   <script>
     (async () => {
       try {
-        // ✅ Bloque le rechargement après insertion
+        // 🔒 Protection contre actualisation
         if (sessionStorage.getItem("passager_enregistre") === "true") {
           document.getElementById("message").textContent = "✅ Vous êtes déjà enregistré. (Actualisation bloquée)";
           throw new Error("Déjà scanné (refresh)");
         }
 
-        // ✅ Récupère l’ID de la voiture
+        // ✅ Récupère voiture_id
         const voitureId = new URLSearchParams(window.location.search).get('voiture_id');
         if (!voitureId) {
-          document.getElementById("message").textContent = "❌ Erreur : ID de voiture manquant dans l’URL.";
+          document.getElementById("message").textContent = "❌ Erreur : ID de voiture manquant.";
           throw new Error("voiture_id manquant");
         }
 
-        // ✅ UUID unique pour l'utilisateur
+        // ✅ UUID unique pour chaque passager
         const uuid = localStorage.getItem("uuid") || crypto.randomUUID();
         localStorage.setItem("uuid", uuid);
 
-        // ✅ Date et heure actuelles
+        // ✅ Date, heure, mois
         const now = new Date();
-        const date = now.toISOString().slice(0, 10);
-        const heure = now.toTimeString().slice(0, 8);
-        const mois_validite = date.slice(0, 7); // YYYY-MM
+        const date = now.toISOString().slice(0, 10); // YYYY-MM-DD
+        const heure = now.toTimeString().slice(0, 8); // HH:mm:ss
+        const mois_validite = date.slice(0, 7);       // YYYY-MM
 
-        // ✅ Récupère l'adresse IP du client
+        // ✅ IP du client
         const ipRes = await fetch("https://api64.ipify.org?format=json");
         const { ip } = await ipRes.json();
 
-        // ✅ Étape 1 - Vérifie si scan récent
+        // 🔍 Vérification (checkOnly)
         const verif = await fetch("/.netlify/functions/add_passager", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             voiture_id: voitureId,
             date,
+            heure,
+            montant: 0,
             uuid,
             ip,
+            mois_validite,
+            nombre_passagers: 1,
             checkOnly: true
           })
         });
@@ -99,11 +103,16 @@
         const res = await verif.json();
 
         if (res.status === "too_soon") {
-          document.getElementById("message").textContent = "⏳ Vous avez déjà scanné il y a moins de 2 minutes.";
+          document.getElementById("message").textContent = "⏳ Vous avez déjà scanné il y a moins de 15 minutes.";
           throw new Error("Scan trop récent");
         }
 
-        // ✅ Étape 2 - Insertion
+        if (res.status === "exists") {
+          document.getElementById("message").textContent = "✅ Vous êtes déjà enregistré aujourd’hui.";
+          throw new Error("Déjà présent aujourd’hui");
+        }
+
+        // ✅ Insertion réelle
         const insertion = await fetch("/.netlify/functions/add_passager", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -127,7 +136,7 @@
           throw new Error("Erreur insertion");
         }
 
-        // ✅ Affichage reçu
+        // ✅ Affichage du reçu
         sessionStorage.setItem("passager_enregistre", "true");
         document.getElementById("message").style.display = "none";
         document.getElementById("recu").style.display = "block";
@@ -155,6 +164,7 @@
   </script>
 </body>
 </html>
+
 
 
 

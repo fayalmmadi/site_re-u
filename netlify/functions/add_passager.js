@@ -9,55 +9,70 @@ const supabase = createClient(
 exports.handler = async (event, context) => {
   try {
     const body = JSON.parse(event.body);
+
     const isCheckOnly = body.checkOnly === true;
 
-    // Données attendues
-    const { voiture_id, date, heure, montant, uuid, ip, mois_validite } = body;
+    // 📥 Données attendues
+    const {
+      voiture_id,
+      date,
+      heure,
+      montant = 0,
+      uuid,
+      mois_validite
+    } = body;
+
+    // 🔍 Récupère l'IP (depuis body ou header)
+    const ip = body.ip || event.headers['x-forwarded-for'] || '0.0.0.0';
 
     console.log("📦 Données reçues :", {
       voiture_id, date, heure, montant, uuid, ip, mois_validite, isCheckOnly
     });
 
-    // 🔄 Vérifie si ce téléphone (uuid) a scanné cette voiture dans les 2 dernières minutes
-    const now = new Date();
-    const twoMinAgo = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
-
-    const { data: recentScan, error: scanError } = await supabase
+    // 1️⃣ Vérifie si ce passager (uuid) a déjà scanné aujourd’hui
+    const { data: dejaInsere } = await supabase
       .from('passagers')
-      .select('created_at')
+      .select('id')
       .eq('uuid', uuid)
+      .eq('date', date)
       .eq('voiture_id', voiture_id)
-      .gte('created_at', twoMinAgo)
       .maybeSingle();
 
-    if (scanError) {
-      console.error("❌ Erreur vérification doublon :", scanError.message);
-    }
-
-    if (recentScan) {
+    if (dejaInsere) {
       return {
         statusCode: 200,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Content-Type": "application/json"
-        },
+        body: JSON.stringify({ status: 'exists' }),
+      };
+    }
+
+    // 2️⃣ Vérifie délai 15 min pour cette IP + voiture
+    const now = new Date();
+    const quinzMinAgo = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+
+    const { data: doublon } = await supabase
+      .from('passagers')
+      .select('id')
+      .eq('voiture_id', voiture_id)
+      .eq('ip', ip)
+      .gte('created_at', quinzMinAgo)
+      .maybeSingle();
+
+    if (doublon) {
+      return {
+        statusCode: 200,
         body: JSON.stringify({ status: 'too_soon' }),
       };
     }
 
-    // ✅ Vérification uniquement
+    // 3️⃣ Si checkOnly, ne rien insérer
     if (isCheckOnly) {
       return {
         statusCode: 200,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({ status: 'ok' }),
       };
     }
 
-    // ✅ Insertion dans Supabase
+    // 4️⃣ Insertion finale du passager
     const { error } = await supabase.from('passagers').insert([{
       voiture_id,
       date,
@@ -73,20 +88,12 @@ exports.handler = async (event, context) => {
       console.error("❌ Erreur insertion Supabase :", error.message);
       return {
         statusCode: 401,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({ message: "Erreur insertion", erreur: error.message }),
       };
     }
 
     return {
       statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json"
-      },
       body: JSON.stringify({ message: "Insertion réussie" }),
     };
 
@@ -94,10 +101,6 @@ exports.handler = async (event, context) => {
     console.error("💥 Erreur serveur :", err.message);
     return {
       statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json"
-      },
       body: JSON.stringify({ message: "Erreur serveur", erreur: err.message }),
     };
   }
