@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Connexion à Supabase avec les variables d'environnement
+// Connexion à Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE
@@ -11,13 +11,14 @@ exports.handler = async (event, context) => {
     const body = JSON.parse(event.body);
     const isCheckOnly = body.checkOnly === true;
 
-    const { voiture_id, date, heure, montant, uuid, ip } = body;
+    // Données attendues
+    const { voiture_id, date, heure, montant, uuid, ip, mois_validite } = body;
 
     console.log("📦 Données reçues :", {
-      voiture_id, date, heure, montant, uuid, ip, isCheckOnly
+      voiture_id, date, heure, montant, uuid, ip, mois_validite, isCheckOnly
     });
 
-    // 🔄 Vérifie si ce téléphone (uuid) a scanné dans les 2 dernières minutes
+    // 🔄 Vérifie si ce téléphone (uuid) a scanné cette voiture dans les 2 dernières minutes
     const now = new Date();
     const twoMinAgo = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
 
@@ -33,7 +34,6 @@ exports.handler = async (event, context) => {
       console.error("❌ Erreur vérification doublon :", scanError.message);
     }
 
-    // ⛔️ Bloque si scan récent
     if (recentScan) {
       return {
         statusCode: 200,
@@ -45,7 +45,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // ✅ Si juste vérification
+    // ✅ Vérification uniquement
     if (isCheckOnly) {
       return {
         statusCode: 200,
@@ -57,7 +57,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // ✅ Insertion du passager
+    // ✅ Insertion dans Supabase
     const { error } = await supabase.from('passagers').insert([{
       voiture_id,
       date,
@@ -65,6 +65,7 @@ exports.handler = async (event, context) => {
       montant,
       uuid,
       ip,
+      mois_validite,
       nombre_passagers: 1
     }]);
 
@@ -80,7 +81,6 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // ✅ Succès
     return {
       statusCode: 200,
       headers: {
