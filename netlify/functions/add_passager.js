@@ -1,8 +1,9 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// Connexion à Supabase avec les variables d'environnement
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE
 );
 
 exports.handler = async (event, context) => {
@@ -10,9 +11,11 @@ exports.handler = async (event, context) => {
     const body = JSON.parse(event.body);
     const isCheckOnly = body.checkOnly === true;
 
-    const { voiture_id, date, heure, montant, uuid, ip } = body;
+    const { voiture_id, date, heure, montant, uuid, ip, mois_validite } = body;
 
-    console.log("📦 Données reçues :", { voiture_id, date, heure, montant, uuid, isCheckOnly });
+    console.log("📦 Données reçues :", {
+      voiture_id, date, heure, montant, uuid, ip, mois_validite, isCheckOnly
+    });
 
     // 🔄 Vérifie si ce téléphone (uuid) a scanné dans les 2 dernières minutes
     const now = new Date();
@@ -26,7 +29,6 @@ exports.handler = async (event, context) => {
       .gte('created_at', twoMinAgo)
       .maybeSingle();
 
-    // ⛔️ Si déjà scanné récemment (page actualisée ou double clic), on bloque
     if (recentScan) {
       return {
         statusCode: 200,
@@ -34,11 +36,11 @@ exports.handler = async (event, context) => {
           "Access-Control-Allow-Origin": "*",
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ status: 'too_soon' }),
+        body: JSON.stringify({ status: 'too_soon' }), // ✅ pour checkin.html
       };
     }
 
-    // ✅ Si juste une vérification (checkOnly), on s’arrête ici
+    // ✅ Si on ne veut que vérifier (pas ajouter)
     if (isCheckOnly) {
       return {
         statusCode: 200,
@@ -50,7 +52,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // ✅ Sinon on insère un passager
+    // ✅ Insertion dans Supabase
     const { error } = await supabase.from('passagers').insert([{
       voiture_id,
       date,
@@ -58,6 +60,7 @@ exports.handler = async (event, context) => {
       montant,
       uuid,
       ip,
+      mois_validite,
       nombre_passagers: 1
     }]);
 
@@ -73,6 +76,7 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // ✅ Succès
     return {
       statusCode: 200,
       headers: {
