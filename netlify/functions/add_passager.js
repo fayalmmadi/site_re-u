@@ -11,17 +11,17 @@ exports.handler = async (event, context) => {
     const body = JSON.parse(event.body);
     const isCheckOnly = body.checkOnly === true;
 
-    const { voiture_id, date, heure, montant, uuid, ip, mois_validite } = body;
+    const { voiture_id, date, heure, montant, uuid, ip } = body;
 
     console.log("📦 Données reçues :", {
-      voiture_id, date, heure, montant, uuid, ip, mois_validite, isCheckOnly
+      voiture_id, date, heure, montant, uuid, ip, isCheckOnly
     });
 
     // 🔄 Vérifie si ce téléphone (uuid) a scanné dans les 2 dernières minutes
     const now = new Date();
     const twoMinAgo = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
 
-    const { data: recentScan } = await supabase
+    const { data: recentScan, error: scanError } = await supabase
       .from('passagers')
       .select('created_at')
       .eq('uuid', uuid)
@@ -29,6 +29,11 @@ exports.handler = async (event, context) => {
       .gte('created_at', twoMinAgo)
       .maybeSingle();
 
+    if (scanError) {
+      console.error("❌ Erreur vérification doublon :", scanError.message);
+    }
+
+    // ⛔️ Bloque si scan récent
     if (recentScan) {
       return {
         statusCode: 200,
@@ -36,11 +41,11 @@ exports.handler = async (event, context) => {
           "Access-Control-Allow-Origin": "*",
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ status: 'too_soon' }), // ✅ pour checkin.html
+        body: JSON.stringify({ status: 'too_soon' }),
       };
     }
 
-    // ✅ Si on ne veut que vérifier (pas ajouter)
+    // ✅ Si juste vérification
     if (isCheckOnly) {
       return {
         statusCode: 200,
@@ -52,7 +57,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // ✅ Insertion dans Supabase
+    // ✅ Insertion du passager
     const { error } = await supabase.from('passagers').insert([{
       voiture_id,
       date,
@@ -60,7 +65,6 @@ exports.handler = async (event, context) => {
       montant,
       uuid,
       ip,
-      mois_validite,
       nombre_passagers: 1
     }]);
 
