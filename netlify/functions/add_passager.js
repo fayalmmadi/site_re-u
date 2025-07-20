@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 // 🔐 Tu dois remplacer ici par ta vraie clé "service role", PAS l’anon key
 const supabase = createClient(
-  'https://pzwpnxmdashuieibwjym.supabase.co',
+  process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE
 );
 
