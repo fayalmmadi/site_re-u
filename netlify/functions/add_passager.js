@@ -85,6 +85,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ message: "Erreur insertion", erreur: error.message }),
       };
     }
+    console.log("✅ Passager inséré avec succès !");
 
     return {
       statusCode: 200,
