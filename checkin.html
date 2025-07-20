@@ -83,7 +83,7 @@
         const ipRes = await fetch("https://api64.ipify.org?format=json");
         const { ip } = await ipRes.json();
 
-        // 🔍 Vérification (checkOnly)
+        // 🔍 Vérification (isCheckOnly)
         const verif = await fetch("/.netlify/functions/add_passager", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -96,7 +96,7 @@
             ip,
             mois_validite,
             nombre_passagers: 1,
-            checkOnly: true
+            isCheckOnly: true
           })
         });
 
@@ -125,7 +125,7 @@
             ip,
             mois_validite,
             nombre_passagers: 1,
-            checkOnly: false
+            isCheckOnly: false
           })
         });
 
@@ -164,6 +164,7 @@
   </script>
 </body>
 </html>
+
 
 
 

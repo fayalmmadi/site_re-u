@@ -1,30 +1,32 @@
 const { createClient } = require('@supabase/supabase-js');
-
-// Connexion à Supabase
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE
-);
+const supabase = createClient('https://pzwpnxmdashuieibwjym.supabase.co', 'SUPABASE_ANON_KEY'); // ← remplace par ta vraie clé
 
 exports.handler = async (event, context) => {
   try {
     const body = JSON.parse(event.body);
-    const isCheckOnly = body.checkOnly === true;
 
-    // 🔍 Récupération des données
+    // 🔸 Récupération des données
     const voiture_id = body.voiture_id;
     const date = body.date;
     const heure = body.heure;
-    const montant = body.montant ?? 0; // Si vide, met 0
+    const montant = body.montant ?? 0;
     const uuid = body.uuid;
     const mois_validite = body.mois_validite;
     const ip = body.ip || event.headers['x-forwarded-for'] || '0.0.0.0';
+    const isCheckOnly = body.isCheckOnly === true;
 
-    console.log("📦 Données reçues :", {
-      voiture_id, date, heure, montant, uuid, ip, mois_validite, isCheckOnly
+    console.log("📥 Données reçues :", {
+      voiture_id,
+      date,
+      heure,
+      montant,
+      uuid,
+      mois_validite,
+      ip,
+      isCheckOnly
     });
 
-    // 1️⃣ Vérifie si ce passager a déjà scanné aujourd’hui (par UUID + date)
+    // ✅ Vérifie si le passager a déjà scanné aujourd’hui (UUID + date)
     const { data: existing } = await supabase
       .from('passagers')
       .select('id')
@@ -33,32 +35,37 @@ exports.handler = async (event, context) => {
       .maybeSingle();
 
     if (existing) {
+      console.log("⚠️ Passager déjà scanné aujourd’hui !");
       return {
         statusCode: 200,
         body: JSON.stringify({ status: 'exists' }),
       };
     }
 
-    // 2️⃣ Vérifie si ce passager a scanné il y a moins de 15 minutes (anti-spam)
+    // ✅ Vérifie délai anti-spam (15 min)
     const now = new Date();
-    const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
-
-    const { data: recentScan } = await supabase
+    const { data: recentScans, error: scanError } = await supabase
       .from('passagers')
       .select('created_at')
-      .eq('uuid', uuid)
       .eq('voiture_id', voiture_id)
-      .gte('created_at', fifteenMinAgo)
-      .maybeSingle();
+      .eq('ip', ip)
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    if (recentScan) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ status: 'too_soon' }),
-      };
+    if (recentScans && recentScans.length > 0) {
+      const lastScan = new Date(recentScans[0].created_at);
+      const diffMinutes = (now - lastScan) / (1000 * 60);
+
+      if (diffMinutes < 15) {
+        console.log("⏳ Scan trop récent, refusé.");
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ status: 'too_soon' }),
+        };
+      }
     }
 
-    // 3️⃣ Mode vérification uniquement
+    // ✅ Si c’est une simple vérification
     if (isCheckOnly) {
       return {
         statusCode: 200,
@@ -66,8 +73,18 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 4️⃣ Insertion du passager
-    const { error } = await supabase.from('passagers').insert([{
+    // ✅ Insertion du passager
+    console.log("👉 Données envoyées à Supabase :", {
+      voiture_id,
+      date,
+      heure,
+      montant,
+      uuid,
+      ip,
+      mois_validite
+    });
+
+    const { error } = await supabase.from("passagers").insert([{
       voiture_id,
       date,
       heure,
@@ -85,15 +102,14 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ message: "Erreur insertion", erreur: error.message }),
       };
     }
-    console.log("✅ Passager inséré avec succès !");
 
+    console.log("✅ Passager inséré avec succès !");
     return {
       statusCode: 200,
       body: JSON.stringify({ message: "Insertion réussie" }),
     };
-
   } catch (err) {
-    console.error("💥 Erreur serveur :", err.message);
+    console.error("❌ Erreur globale :", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: "Erreur serveur", erreur: err.message }),
