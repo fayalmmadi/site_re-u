@@ -1,5 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient('https://pzwpnxmdashuieibwjym.supabase.co', 'SUPABASE_ANON_KEY'); // ← remplace par ta vraie clé
+
+// 🔐 Tu dois remplacer ici par ta vraie clé "service role", PAS l’anon key
+const supabase = createClient(
+  'https://pzwpnxmdashuieibwjym.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE
+);
 
 exports.handler = async (event, context) => {
   try {
@@ -26,7 +31,7 @@ exports.handler = async (event, context) => {
       isCheckOnly
     });
 
-    // ✅ Vérifie si le passager a déjà scanné aujourd’hui (UUID + date)
+    // ✅ Vérifie si le passager a déjà scanné aujourd’hui
     const { data: existing } = await supabase
       .from('passagers')
       .select('id')
@@ -42,7 +47,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // ✅ Vérifie délai anti-spam (15 min)
+    // ✅ Vérifie délai anti-spam (15 minutes)
     const now = new Date();
     const { data: recentScans, error: scanError } = await supabase
       .from('passagers')
@@ -65,7 +70,6 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // ✅ Si c’est une simple vérification
     if (isCheckOnly) {
       return {
         statusCode: 200,
@@ -108,6 +112,7 @@ exports.handler = async (event, context) => {
       statusCode: 200,
       body: JSON.stringify({ message: "Insertion réussie" }),
     };
+
   } catch (err) {
     console.error("❌ Erreur globale :", err);
     return {
