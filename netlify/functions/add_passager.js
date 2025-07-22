@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// 🔐 Tu dois remplacer ici par ta vraie clé "service role", PAS l’anon key
+// 🔐 Remplace par ta vraie clé Service Role
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE
@@ -31,22 +31,6 @@ exports.handler = async (event, context) => {
       isCheckOnly
     });
 
-    // ✅ Vérifie si le passager a déjà scanné aujourd’hui
-    const { data: existing } = await supabase
-      .from('passagers')
-      .select('id')
-      .eq('uuid', uuid)
-      .eq('date', date)
-      .maybeSingle();
-
-    if (existing) {
-      console.log("⚠️ Passager déjà scanné aujourd’hui !");
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ status: 'exists' }),
-      };
-    }
-
     // ✅ Vérifie délai anti-spam (15 minutes)
     const now = new Date();
     const { data: recentScans, error: scanError } = await supabase
@@ -70,6 +54,7 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // ✅ Mode check uniquement (affichage reçu sans insertion)
     if (isCheckOnly) {
       return {
         statusCode: 200,
