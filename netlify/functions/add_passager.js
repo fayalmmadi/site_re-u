@@ -1,79 +1,121 @@
+// netlify/functions/add_passager.js
 const { createClient } = require('@supabase/supabase-js');
 
-// 🔐 Remplace par ta vraie clé Service Role
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE
 );
 
-exports.handler = async (event, context) => {
+exports.handler = async (event) => {
   try {
-    const body = JSON.parse(event.body);
+    if (event.httpMethod !== 'POST') {
+      return {
+        statusCode: 405,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'error', message: 'Method Not Allowed' })
+      };
+    }
 
-    // 🔸 Récupération des données
-    const voiture_id = body.voiture_id;
-    const date = body.date;
-    const heure = body.heure;
-    const montant = body.montant ?? 0;
-    const uuid = body.uuid;
-    const mois_validite = body.mois_validite;
-    const ip = body.ip || event.headers['x-forwarded-for'] || '0.0.0.0';
-    const isCheckOnly = body.isCheckOnly === true;
+    const body = JSON.parse(event.body || '{}');
 
-    console.log("📥 Données reçues :", {
-      voiture_id,
+    const voiture_id    = body.voiture_id;  // UUID de la voiture
+    const date          = body.date;        // "YYYY-MM-DD"
+    const heure         = body.heure;       // "HH:MM:SS"
+    const mois_validite = body.mois_validite; // "YYYY-MM"
+    const montant       = body.montant ?? 0;
+    const uuid          = body.uuid;
+    const isCheckOnly   = body.isCheckOnly === true;
+
+    // IP pour anti-spam (15 min)
+    const ip =
+      body.ip ||
+      event.headers['x-forwarded-for'] ||
+      event.headers['client-ip'] ||
+      '0.0.0.0';
+
+    if (!voiture_id) {
+      return {
+        statusCode: 400,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'error', message: 'voiture_id manquant' })
+      };
+    }
+
+    // (1) Récup info voiture + chauffeur
+    const { data: car, error: carErr } = await supabase
+      .from('voitures')
+      .select('id, immatriculation, display_driver_name, owner_user_id')
+      .eq('id', voiture_id)
+      .single();
+
+    if (carErr || !car) {
+      return {
+        statusCode: 404,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'error', message: 'Voiture introuvable' })
+      };
+    }
+
+    // Essayer de récupérer nom/prenom du profil propriétaire (si besoin)
+    let nom = null, prenom = null;
+    if (car.owner_user_id) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('nom, prenom')
+        .eq('id', car.owner_user_id)
+        .maybeSingle();
+      nom = prof?.nom || null;
+      prenom = prof?.prenom || null;
+    }
+
+    // Construire un affichage "Prénom Nom" par défaut si pas de display_driver_name
+    const displayChauffeur =
+      car.display_driver_name ||
+      [prenom, nom].filter(Boolean).join(' ') ||
+      '—';
+
+    // Reçu "standard"
+    const receipt = {
+      voiture:   { immatriculation: car.immatriculation },
+      chauffeur: { nom, prenom, display: displayChauffeur },
       date,
-      heure,
-      montant,
-      uuid,
-      mois_validite,
-      ip,
-      isCheckOnly
-    });
+      time: heure,
+      valid_month: mois_validite
+    };
 
-    // ✅ Vérifie délai anti-spam (15 minutes)
+    // (2) Anti-spam 15 min par (voiture_id + ip)
     const now = new Date();
-    const { data: recentScans, error: scanError } = await supabase
+    const { data: lastScan } = await supabase
       .from('passagers')
       .select('created_at')
       .eq('voiture_id', voiture_id)
       .eq('ip', ip)
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(1)
+      .maybeSingle();
 
-    if (recentScans && recentScans.length > 0) {
-      const lastScan = new Date(recentScans[0].created_at);
-      const diffMinutes = (now - lastScan) / (1000 * 60);
-
+    if (lastScan) {
+      const diffMinutes = (now - new Date(lastScan.created_at)) / 60000;
       if (diffMinutes < 15) {
-        console.log("⏳ Scan trop récent, refusé.");
         return {
           statusCode: 200,
-          body: JSON.stringify({ status: 'too_soon' }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'too_soon', receipt })
         };
       }
     }
 
-    // ✅ Mode check uniquement (affichage reçu sans insertion)
+    // (3) Mode check-only → pas d'insertion
     if (isCheckOnly) {
       return {
         statusCode: 200,
-        body: JSON.stringify({ status: 'ok' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'ok', receipt })
       };
     }
 
-    // ✅ Insertion du passager
-    console.log("👉 Données envoyées à Supabase :", {
-      voiture_id,
-      date,
-      heure,
-      montant,
-      uuid,
-      ip,
-      mois_validite
-    });
-
-    const { error } = await supabase.from("passagers").insert([{
+    // (4) Insertion en base
+    const { error: insErr } = await supabase.from('passagers').insert([{
       voiture_id,
       date,
       heure,
@@ -84,25 +126,26 @@ exports.handler = async (event, context) => {
       nombre_passagers: 1
     }]);
 
-    if (error) {
-      console.error("❌ Erreur insertion Supabase :", error.message);
+    if (insErr) {
       return {
-        statusCode: 401,
-        body: JSON.stringify({ message: "Erreur insertion", erreur: error.message }),
+        statusCode: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'error', message: insErr.message })
       };
     }
 
-    console.log("✅ Passager inséré avec succès !");
+    // (5) OK → renvoyer reçu
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "Insertion réussie" }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'inserted', receipt })
     };
 
-  } catch (err) {
-    console.error("❌ Erreur globale :", err);
+  } catch (e) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: "Erreur serveur", erreur: err.message }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'error', message: e.message })
     };
   }
 };

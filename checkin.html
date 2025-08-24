@@ -2,168 +2,210 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Enregistrement du Passager</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Enregistrement du passager</title>
+
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 50px;
-      background-color: #f8f9fa;
+    :root {
+      --bg:#f8f9fa; --ink:#1f2937; --muted:#6b7280;
+      --card:#fff; --ok:#16a34a; --warn:#d97706; --err:#dc2626;
     }
-
-    h1 {
-      color: #2c3e50;
+    *{box-sizing:border-box}
+    body{
+      margin:0; padding:40px 16px; background:var(--bg);
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--ink); text-align:center;
     }
-
-    #message {
-      margin-top: 30px;
-      font-size: 1.2em;
-      color: #333;
+    h1{margin:0; font-size:26px}
+    #message{margin-top:8px; color:var(--muted)}
+    .recu{
+      max-width:520px; margin:28px auto; text-align:left;
+      background:var(--card); border-radius:14px; padding:22px;
+      box-shadow:0 10px 30px rgba(0,0,0,.08);
     }
+    .recu h2{margin:0 0 8px; color:var(--ok)}
+    .row{margin:10px 0}
+    .label{display:inline-block; min-width:180px; color:var(--muted)}
+    .hr{height:1px; background:#e5e7eb; margin:14px 0}
+    .status{display:inline-flex; gap:8px; padding:6px 12px; border-radius:999px; font-weight:600; font-size:13px}
+    .ok{background:#dcfce7; color:#166534}
+    .warn{background:#fff7ed; color:#92400e}
+    .err{background:#fee2e2; color:#991b1b}
+    .actions{display:flex; gap:10px; margin-top:14px}
+    .btn{flex:1; padding:10px 14px; border:none; border-radius:8px; cursor:pointer; font-weight:700}
+    .btn-primary{background:var(--ok); color:#fff}
+    .btn-outline{background:#fff; color:var(--ok); border:2px solid var(--ok)}
+    .hidden{display:none !important}
 
-    .recu {
-      background: #fff;
-      border-radius: 10px;
-      padding: 20px;
-      max-width: 400px;
-      margin: 30px auto;
-      box-shadow: 0 0 10px #ccc;
-    }
-
-    .recu h2 {
-      color: green;
-    }
-
-    .recu button {
-      background-color: green;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-      margin-top: 10px;
-      cursor: pointer;
+    @media print {
+      body { background:#fff; }
+      #message, #btnDone { display: none !important; }
+      .recu { box-shadow: none; border:1px solid #e5e7eb; }
     }
   </style>
 </head>
 <body>
 
-  <h1>Vérification en cours...</h1>
-  <div id="message">Merci de patienter quelques secondes...</div>
-  <div id="recu" style="display:none;"></div>
+  <h1>Vérification en cours…</h1>
+  <div id="message">Merci de patienter quelques secondes…</div>
+
+  <div id="recu" class="recu hidden">
+    <h2>🧾 Reçu de montée</h2>
+    <div id="statusBadge" class="status"></div>
+    <div class="hr"></div>
+
+    <div class="row"><span class="label">Taxi immatriculé :</span> <strong id="immat">—</strong></div>
+    <div class="row"><span class="label">Chauffeur :</span> <strong id="chauffeur">—</strong></div>
+    <div class="row"><span class="label">Date :</span> <span id="date">—</span></div>
+    <div class="row"><span class="label">Heure :</span> <span id="time">—</span></div>
+    <div class="row"><span class="label">Mois de validité :</span> <span id="valid">—</span></div>
+
+    <div class="hr"></div>
+    <div id="noteText" style="color:var(--muted)">✅ Vous êtes bien monté dans le taxi.</div>
+
+    <div class="actions">
+      <button id="btnPrint" class="btn btn-primary">🖨️ Télécharger / Imprimer</button>
+      <button id="btnDone"  class="btn btn-outline">Terminer</button>
+    </div>
+  </div>
 
   <script>
-    (async () => {
-      try {
-        // 🔒 Protection contre actualisation
-        if (sessionStorage.getItem("passager_enregistre") === "true") {
-          document.getElementById("message").textContent = "✅ Vous êtes déjà enregistré. (Actualisation bloquée)";
-          throw new Error("Déjà scanné (refresh)");
-        }
+  (async () => {
+    const el = (id) => document.getElementById(id);
+    const msg = (t)=> el('message').textContent = t;
+    const showReceipt = ()=>{
+      el('recu').classList.remove('hidden');
+      el('message').classList.add('hidden');
+    };
+    const hideReceipt = ()=>{
+      el('recu').classList.add('hidden');
+      el('message').classList.remove('hidden');
+    };
 
-        // ✅ Récupère voiture_id
-        const voitureId = new URLSearchParams(window.location.search).get('voiture_id');
-        if (!voitureId) {
-          document.getElementById("message").textContent = "❌ Erreur : ID de voiture manquant.";
-          throw new Error("voiture_id manquant");
-        }
-
-        // ✅ UUID unique pour chaque passager
-        const uuid = localStorage.getItem("uuid") || crypto.randomUUID();
-        localStorage.setItem("uuid", uuid);
-
-        // ✅ Date, heure, mois
-        const now = new Date();
-        const date = now.toISOString().slice(0, 10); // YYYY-MM-DD
-        const heure = now.toTimeString().slice(0, 8); // HH:mm:ss
-        const mois_validite = date.slice(0, 7);       // YYYY-MM
-
-        // ✅ IP du client
-        const ipRes = await fetch("https://api64.ipify.org?format=json");
-        const { ip } = await ipRes.json();
-
-        // 🔍 Vérification (isCheckOnly)
-        const verif = await fetch("/.netlify/functions/add_passager", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            voiture_id: voitureId,
-            date,
-            heure,
-            montant: 0,
-            uuid,
-            ip,
-            mois_validite,
-            nombre_passagers: 1,
-            isCheckOnly: true
-          })
-        });
-
-        const res = await verif.json();
-
-        if (res.status === "too_soon") {
-          document.getElementById("message").textContent = "⏳ Vous avez déjà scanné il y a moins de 15 minutes.";
-          throw new Error("Scan trop récent");
-        }
-
-        if (res.status === "exists") {
-          document.getElementById("message").textContent = "✅ Vous êtes déjà enregistré aujourd’hui.";
-          throw new Error("Déjà présent aujourd’hui");
-        }
-
-        // ✅ Insertion réelle
-        const insertion = await fetch("/.netlify/functions/add_passager", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            voiture_id: voitureId,
-            date,
-            heure,
-            montant: 0,
-            uuid,
-            ip,
-            mois_validite,
-            nombre_passagers: 1,
-            isCheckOnly: false
-          })
-        });
-
-        const insertRes = await insertion.json();
-
-        if (insertRes.message !== "Insertion réussie") {
-          document.getElementById("message").textContent = "❌ Une erreur est survenue lors de l’insertion.";
-          throw new Error("Erreur insertion");
-        }
-
-        // ✅ Affichage du reçu
-        sessionStorage.setItem("passager_enregistre", "true");
-        document.getElementById("message").style.display = "none";
-        document.getElementById("recu").style.display = "block";
-        document.getElementById("recu").innerHTML = `
-          <div class="recu">
-            <h2>🧾 Reçu de montée</h2>
-            <p><strong>ID Voiture :</strong> ${voitureId}</p>
-            <p><strong>Date :</strong> ${date}</p>
-            <p><strong>Heure :</strong> ${heure}</p>
-            <p><strong>Mois de validité :</strong> ${mois_validite}</p>
-            <p style="color:green;font-weight:bold;">✅ Vous êtes bien monté dans le taxi.</p>
-            <button onclick="window.print()">🖨️ Télécharger / Imprimer le reçu</button>
-          </div>
-        `;
-
-      } catch (err) {
-        console.error("💥 Erreur :", err.message);
-        if (!document.getElementById("message").textContent.includes("❌") &&
-            !document.getElementById("message").textContent.includes("⏳") &&
-            !document.getElementById("message").textContent.includes("✅")) {
-          document.getElementById("message").textContent = "❌ Erreur inattendue. Veuillez réessayer.";
-        }
+    const setBadge = (status)=>{
+      const b = el('statusBadge');
+      b.className = 'status';
+      if (status==='inserted' || status==='ok'){
+        b.classList.add('ok');
+        b.textContent = status==='inserted' ? 'Enregistré' : 'Vérifié';
+      } else if (status==='too_soon'){
+        b.classList.add('warn');
+        b.textContent = 'Déjà enregistré récemment';
+      } else {
+        b.classList.add('err');
+        b.textContent = 'Erreur';
       }
-    })();
+    };
+
+    // Affiche le reçu à partir de l'objet "receipt" renvoyé par le backend
+    const renderFrom = ({ receipt }) => {
+      const immat  = receipt?.voiture?.immatriculation ?? '—';
+      const driver = receipt?.chauffeur?.display
+                  || [receipt?.chauffeur?.prenom, receipt?.chauffeur?.nom].filter(Boolean).join(' ')
+                  || '—';
+
+      el('immat').textContent     = immat;
+      el('chauffeur').textContent = driver;
+      el('date').textContent      = receipt?.date ?? '—';
+      el('time').textContent      = receipt?.time ?? '—';
+      el('valid').textContent     = receipt?.valid_month ?? '—';
+      showReceipt();
+    };
+
+    // Anti-refresh : on ne réinsère pas si l'utilisateur actualise
+    if (sessionStorage.getItem('passager_enregistre') === 'true') {
+      msg('✅ Vous êtes déjà enregistré (actualisation bloquée).');
+      hideReceipt();
+      // On n’affiche pas le reçu ici, car on ne relance pas d’appel
+      // (option : tu peux stocker le dernier "receipt" en sessionStorage si tu veux réafficher)
+      return;
+    }
+
+    // Boutons (posés tôt pour être sûrs qu’ils soient actifs)
+    el('btnPrint').addEventListener('click', () => window.print());
+    el('btnDone').addEventListener('click', () => { window.location.href = '/'; });
+
+    try {
+      // 1) Récupérer voiture_id (vid ou voiture_id) dans l'URL
+      const qs = new URLSearchParams(location.search);
+      const voitureId = qs.get('vid') || qs.get('voiture_id');
+      if (!voitureId) { msg('❌ Erreur : identifiant de voiture manquant.'); return; }
+
+      // 2) Date / Heure / Mois (au format attendu par ton backend)
+      const now = new Date();
+      const date = now.toISOString().slice(0,10);
+      const heure = now.toTimeString().slice(0,8);
+      const mois_validite = date.slice(0,7);
+
+      // 3) UUID persistant pour différencier les appareils
+      const uuid = localStorage.getItem('uuid') || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+      localStorage.setItem('uuid', uuid);
+
+      // 4) IP (facultatif)
+      let ip = null;
+      try {
+        const ipRes = await fetch('https://api64.ipify.org?format=json');
+        const ipJson = await ipRes.json();
+        ip = ipJson.ip || null;
+      } catch {}
+
+      // 5) Vérification (check-only) pour respecter la règle des 15 minutes
+      msg('Vérification en cours…');
+      const verif = await fetch('/.netlify/functions/add_passager', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ voiture_id: voitureId, date, heure, montant:0, uuid, ip, mois_validite, isCheckOnly:true })
+      }).then(r=>r.json());
+
+      if (verif.status === 'too_soon') {
+        setBadge('too_soon');
+        el('noteText').textContent = '⏳ Vous avez déjà scanné ce taxi il y a moins de 15 minutes.';
+        renderFrom({ receipt: verif.receipt });
+        sessionStorage.setItem('passager_enregistre','true');
+        return;
+      }
+      if (verif.status !== 'ok') {
+        msg('❌ Erreur lors de la vérification.');
+        console.error(verif);
+        return;
+      }
+
+      // 6) Insertion
+      msg('Enregistrement en cours…');
+      const ins = await fetch('/.netlify/functions/add_passager', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ voiture_id: voitureId, date, heure, montant:0, uuid, ip, mois_validite, isCheckOnly:false })
+      }).then(r=>r.json());
+
+      if (ins.status === 'inserted' || ins.status === 'ok') {
+        setBadge(ins.status);
+        el('noteText').textContent =
+          ins.status === 'inserted' ? '✅ Enregistrement effectué.' : '✅ Vérification effectuée.';
+        renderFrom({ receipt: ins.receipt || verif.receipt });
+        sessionStorage.setItem('passager_enregistre','true');
+        return;
+      }
+      if (ins.status === 'too_soon') {
+        setBadge('too_soon');
+        el('noteText').textContent = '⏳ Vous avez déjà scanné ce taxi il y a moins de 15 minutes.';
+        renderFrom({ receipt: ins.receipt || verif.receipt });
+        sessionStorage.setItem('passager_enregistre','true');
+        return;
+      }
+
+      msg('❌ Une erreur est survenue lors de l’insertion.');
+      console.error(ins);
+
+    } catch (e) {
+      console.error(e);
+      msg('❌ Erreur inattendue. Veuillez réessayer.');
+    }
+  })();
   </script>
 </body>
 </html>
+
 
 
 
