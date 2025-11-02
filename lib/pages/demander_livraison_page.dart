@@ -1,5 +1,5 @@
 // lib/pages/demander_livraison_page.dart
-// ---------------------------------------
+// ======================================
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -22,8 +22,13 @@ import 'refused_list_page.dart';
 import 'rejected_list_page.dart';
 import 'pending_list_page.dart';
 
-// ================== CONFIG GOOGLE ==================
-const String kGoogleApiKey = 'AIzaSyA6ajGK9iQv0tLeFdnRMfqrjL95yOhG_fg'; // <-- à remplacer
+// ================== CONFIGURE ==================
+// ⚠️ La key publique n'est plus utilisée côté client (toutes les requêtes Google passent par le proxy).
+const String kGoogleApiKey = 'AIzaSyCIcG4XoPdxPU9b7ZSzZ3iOC6tB7aJshuc';
+
+// Proxy Netlify (sécurise la clé serveur Google)
+const String kPlacesProxyBase =
+    'https://suivi-taxis.netlify.app/.netlify/functions/places_proxy';
 
 // ================== Helpers devise =================
 String _currencyCodeForIso(String iso) {
@@ -97,18 +102,16 @@ String _newPlacesSessionToken() {
   return (false, null, null);
 }
 
+// === Tous les appels Google passent par le proxy ===
 Future<(double?, double?)> _geocodeAddress(String query) async {
   if (query.isEmpty) return (null, null);
-  final uri = Uri.https(
-    'maps.googleapis.com',
-    '/maps/api/geocode/json',
-    {'address': query, 'key': kGoogleApiKey, 'language': 'fr'},
-  );
+  final uri = Uri.parse('$kPlacesProxyBase?endpoint=geocode&input=${Uri.encodeQueryComponent(query)}');
   final r = await http.get(uri);
   if (r.statusCode != 200) return (null, null);
   final data = json.decode(r.body);
-  if (data['status'] != 'OK' || (data['results'] as List).isEmpty) return (null, null);
-  final loc = data['results'][0]['geometry']['location'];
+  if ((data['status'] ?? '') != 'OK') return (null, null);
+  final first = (data['results'] as List).first;
+  final loc = first['geometry']['location'];
   return ((loc['lat'] as num).toDouble(), (loc['lng'] as num).toDouble());
 }
 
@@ -117,18 +120,14 @@ Future<List<Map<String, String>>> _placesAutocomplete(
   String? sessionToken,
 }) async {
   if (input.trim().isEmpty) return [];
-  final params = {
-    'input': input,
-    'key': kGoogleApiKey,
-    'language': 'fr',
-    'types': 'geocode',
-    if (sessionToken != null) 'sessiontoken': sessionToken,
-  };
-  final uri = Uri.https('maps.googleapis.com', '/maps/api/place/autocomplete/json', params);
+  final uri = Uri.parse('$kPlacesProxyBase'
+      '?endpoint=autocomplete'
+      '&input=${Uri.encodeQueryComponent(input)}'
+      '&sessiontoken=${Uri.encodeQueryComponent(sessionToken ?? _newPlacesSessionToken())}');
   final r = await http.get(uri);
   if (r.statusCode != 200) return [];
   final data = json.decode(r.body);
-  if (data['status'] != 'OK') return [];
+  if ((data['status'] ?? '') != 'OK') return [];
   final preds = (data['predictions'] as List).cast<Map<String, dynamic>>();
   return preds
       .map((p) => {
@@ -142,20 +141,85 @@ Future<(double?, double?)> _placeDetailsLatLng(
   String placeId, {
   String? sessionToken,
 }) async {
-  final params = {
-    'place_id': placeId,
-    'fields': 'geometry',
-    'key': kGoogleApiKey,
-    'language': 'fr',
-    if (sessionToken != null) 'sessiontoken': sessionToken,
-  };
-  final uri = Uri.https('maps.googleapis.com', '/maps/api/place/details/json', params);
+  final uri = Uri.parse('$kPlacesProxyBase'
+      '?endpoint=details'
+      '&place_id=${Uri.encodeQueryComponent(placeId)}'
+      '&sessiontoken=${Uri.encodeQueryComponent(sessionToken ?? _newPlacesSessionToken())}');
   final r = await http.get(uri);
   if (r.statusCode != 200) return (null, null);
   final data = json.decode(r.body);
-  if (data['status'] != 'OK') return (null, null);
+  if ((data['status'] ?? '') != 'OK') return (null, null);
   final loc = data['result']['geometry']['location'];
   return ((loc['lat'] as num).toDouble(), (loc['lng'] as num).toDouble());
+}
+
+// ====== ROUTE / DIRECTIONS ======
+List<LatLng> _decodePolyline(String poly) {
+  final List<LatLng> points = [];
+  int index = 0, lat = 0, lng = 0;
+
+  while (index < poly.length) {
+    int b, shift = 0, result = 0;
+    do {
+      b = poly.codeUnitAt(index++) - 63;
+      result |= (b & 0x1F) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    int dlat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = poly.codeUnitAt(index++) - 63;
+      result |= (b & 0x1F) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    int dlng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+    lng += dlng;
+
+    points.add(LatLng(lat / 1e5, lng / 1e5));
+  }
+  return points;
+}
+
+Set<Polyline> _polylines = {};
+
+Future<void> _drawRoutePolyline({required double depLat, required double depLng, required double arrLat, required double arrLng, GoogleMapController? mapCtrl}) async {
+  final uri = Uri.parse('$kPlacesProxyBase?endpoint=directions&origin=$depLat,$depLng&destination=$arrLat,$arrLng');
+  final r = await http.get(uri);
+  if (r.statusCode != 200) return;
+  final data = json.decode(r.body);
+  if ((data['status'] ?? '') != 'OK') return;
+
+  final routes = (data['routes'] as List?);
+  if (routes == null || routes.isEmpty) return;
+  final poly = routes[0]['overview_polyline']?['points'] as String?;
+  if (poly == null) return;
+
+  final pts = _decodePolyline(poly);
+  _polylines = {
+    Polyline(
+      polylineId: const PolylineId('route'),
+      points: pts,
+      width: 6,
+      geodesic: true,
+    )
+  };
+
+  if (mapCtrl != null && pts.isNotEmpty) {
+    final sw = LatLng(
+      pts.map((p) => p.latitude).reduce((a, b) => a < b ? a : b),
+      pts.map((p) => p.longitude).reduce((a, b) => a < b ? a : b),
+    );
+    final ne = LatLng(
+      pts.map((p) => p.latitude).reduce((a, b) => a > b ? a : b),
+      pts.map((p) => p.longitude).reduce((a, b) => a > b ? a : b),
+    );
+    await mapCtrl.animateCamera(
+      CameraUpdate.newLatLngBounds(LatLngBounds(southwest: sw, northeast: ne), 60),
+    );
+  }
 }
 
 // ===============================================================
@@ -207,6 +271,8 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
   bool _showMap = true;
   GoogleMapController? _mapCtrl;
   final Set<Marker> _markers = {};
+  final Map<String, Marker> _markersById = {}; // livreur_id -> Marker pour éviter le clignotement
+  Timer? _liveTimer; // rafraîchissement périodique
 
   // Auto-search (itinéraire)
   bool _autoSearch = false;
@@ -223,6 +289,7 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
 
   @override
   void dispose() {
+    _liveTimer?.cancel();
     _searchCtrl.dispose();
     _departCtrl.dispose();
     _arriveeCtrl.dispose();
@@ -387,6 +454,13 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
       );
       await _loadNearby();
       await _moveMapTo(_pos!.latitude, _pos!.longitude, zoom: 13);
+
+      // Live refresh (toutes les 6 s)
+      _liveTimer?.cancel();
+      _liveTimer = Timer.periodic(const Duration(seconds: 6), (_) async {
+        if (!mounted || !_useGps) return;
+        await _loadNearby();
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -427,6 +501,7 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
       if (raw.isEmpty) {
         setState(() {
           _nearbyLivreurs = [];
+          _markersById.clear();
           _markers.clear();
         });
         return;
@@ -449,9 +524,10 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
         });
 
       if (_listChanged(_nearbyLivreurs, merged)) {
-        setState(() => _nearbyLivreurs = merged);
-        _refreshMapMarkersFromList(merged);
+        _nearbyLivreurs = merged;
       }
+      _refreshMapMarkersFromList(merged); // mise à jour différentielle (no blink)
+      setState(() {});
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur recherche à proximité : $e')),
@@ -543,7 +619,9 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
       if (raw.isEmpty) {
         setState(() {
           _autoResults = [];
+          _markersById.clear();
           _markers.clear();
+          _polylines.clear();
         });
       } else {
         final ids = raw.map((e) => e['livreur_id']).toList();
@@ -577,11 +655,24 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
 
         setState(() => _autoResults = merged);
         _refreshMapMarkersFromList(merged);
+
+        if (_depLat != null && _depLng != null && _arrLat != null && _arrLng != null) {
+          await _drawRoutePolyline(
+            depLat: _depLat!, depLng: _depLng!, arrLat: _arrLat!, arrLng: _arrLng!, mapCtrl: _mapCtrl,
+          );
+        }
       }
 
       if (_depLat != null && _depLng != null) {
         await _moveMapTo(_depLat!, _depLng!, zoom: 12);
       }
+
+      // Live refresh pour l'itinéraire (6 s)
+      _liveTimer?.cancel();
+      _liveTimer = Timer.periodic(const Duration(seconds: 6), (_) async {
+        if (!mounted || !_autoSearch) return;
+        await _runAutoSearch();
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur recherche auto : $e')),
@@ -658,28 +749,51 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
   }
 
   void _refreshMapMarkersFromList(List<Map<String, dynamic>> rows) {
-    final ms = <Marker>{};
-    int i = 0;
+    bool changed = false;
+    final aliveIds = <String>{};
+
     for (final row in rows) {
+      final id = (row['id'] ?? row['livreur_id']).toString();
       final lat = (row['last_lat'] ?? row['lat']) as num?;
       final lng = (row['last_lng'] ?? row['lng']) as num?;
       if (lat == null || lng == null) continue;
+      aliveIds.add(id);
+
       final name = (row['nom'] ?? 'Livreur').toString();
       final distance = (row['distance_m'] as num?)?.toDouble();
       final snippet = (distance != null) ? 'À ${(distance / 1000).toStringAsFixed(1)} km' : '';
-      ms.add(Marker(
-        markerId: MarkerId('L$i'),
+
+      final newMarker = Marker(
+        markerId: MarkerId(id),
         position: LatLng(lat.toDouble(), lng.toDouble()),
         infoWindow: InfoWindow(title: name, snippet: snippet),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-      ));
-      i++;
+      );
+
+      final old = _markersById[id];
+      if (old == null ||
+          old.position.latitude != newMarker.position.latitude ||
+          old.position.longitude != newMarker.position.longitude ||
+          old.infoWindow.title != newMarker.infoWindow.title) {
+        _markersById[id] = newMarker;
+        changed = true;
+      }
     }
-    setState(() {
+
+    // retire les livreurs disparus
+    final toRemove = _markersById.keys.where((k) => !aliveIds.contains(k)).toList();
+    if (toRemove.isNotEmpty) {
+      for (final k in toRemove) {
+        _markersById.remove(k);
+      }
+      changed = true;
+    }
+
+    if (changed) {
       _markers
         ..clear()
-        ..addAll(ms);
-    });
+        ..addAll(_markersById.values);
+    }
   }
 
   // ====== UI barre + bottom-sheet ======
@@ -1099,7 +1213,8 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
                     myLocationEnabled: true,
                     myLocationButtonEnabled: true,
                     zoomControlsEnabled: false,
-                    markers: _markers, // voitures affichées ici
+                    markers: _markers, // voitures affichées ici (no blink)
+                    polylines: _polylines, // ligne d'itinéraire
                   ),
                 ),
               ),
@@ -1125,9 +1240,11 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
                 _useGps
                     ? OutlinedButton.icon(
                         onPressed: () {
+                          _liveTimer?.cancel();
                           setState(() {
                             _useGps = false;
                             _nearbyLivreurs = [];
+                            _markersById.clear();
                             _markers.clear();
                           });
                         },
@@ -1300,7 +1417,8 @@ class _DemanderLivraisonPageState extends State<DemanderLivraisonPage> {
                   }
 
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _refreshMapMarkersFromList(rows); // affiche les voitures
+                    _refreshMapMarkersFromList(rows); // affiche / met à jour les voitures
+                    setState(() {});
                   });
 
                   return ListView.separated(
