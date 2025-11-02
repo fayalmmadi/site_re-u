@@ -1,4 +1,3 @@
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const GOOGLE_KEY = process.env.GOOGLE_API_KEY;
 
