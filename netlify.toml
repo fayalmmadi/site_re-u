@@ -1,0 +1,19 @@
+# ===============================
+# Configuration principale Netlify
+# ===============================
+
+[build]
+  publish = "build/web"         # <-- dossier Flutter Web
+  functions = "netlify/functions"
+  command = "flutter build web" # <-- commande de build
+
+[functions]
+  node_bundler = "esbuild"
+
+# ===============================
+# Redirection SPA Flutter Web
+# ===============================
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
