@@ -1,19 +1,14 @@
-# ===============================
-# Configuration principale Netlify
-# ===============================
-
 [build]
-  publish = "build/web"         # <-- dossier Flutter Web
-  functions = "netlify/functions"
-  command = "flutter build web" # <-- commande de build
+# Pas de build Flutter sur Netlify
+command = ""              # ou "echo skip"
+publish = "."             # dossier à publier (tu as index.html/checkin.html à la racine)
 
 [functions]
-  node_bundler = "esbuild"
+directory = "netlify/functions"
+node_bundler = "esbuild"
 
-# ===============================
-# Redirection SPA Flutter Web
-# ===============================
+# (optionnel) redirection SPA si tu as un index.html
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+from = "/*"
+to = "/index.html"
+status = 200
