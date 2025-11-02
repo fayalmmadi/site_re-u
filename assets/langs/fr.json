@@ -1,0 +1,55 @@
+{
+  "title": "Tableau de bord chauffeur",
+  "passenger_count": "Nombre de passagers",
+  "scan_qr": "Scanner QR code",
+  "add_passenger": "Ajouter passager",
+  "history": "Historique",
+  "view_prev_month": "Voir le mois précédent",
+  "export_pdf": "Exporter rapport PDF",
+  "statistics": "Statistiques",
+
+  "menu": "Menu",
+  "driver": "Chauffeur",
+  "owner": "Propriétaire",
+  "my_cars": "Mes voitures",
+  "contact_us": "Contactez-nous",
+
+  "change_language": "Changer de langue",
+  "manage_subscription": "Gérer mon abonnement",
+  "add_car": "Ajouter une voiture",
+  "password": "Mot de passe",
+  "logout": "Se déconnecter",
+
+  "add_car_title": "Ajouter une voiture",
+  "name_label": "Nom",
+  "brand_label": "Marque de la voiture",
+  "plate_label": "Immatriculation",
+  "add_button": "Ajouter",
+
+  "subscription": "ABONNEMENT",
+  "per_month": "€/mois",
+  "monthly": "Mensuel",
+  "yearly": "Annuel",
+  "choose": "Choisir",
+  "cancel": "Résilier",
+  "smart_qr": "QR code intelligent",
+  "app_access": "Accès à Suivi Taxi",
+  "next_debit": "Prochain prélèvement",
+
+  "payment": "Paiement",
+  "amount_to_pay": "Montant à payer",
+  "choose_payment_method": "Choisissez un moyen de paiement",
+  "bank_card": "Carte bancaire (Visa, Mastercard)",
+  "cinetpay": "CinetPay",
+  "paypal": "PayPal",
+  "manual_bank": "Virement bancaire manuel",
+
+  "change_password": "Modifier mot de passe",
+  "old_password": "Ancien mot de passe",
+  "new_password": "Nouveau mot de passe",
+  "confirm_password": "Confirmer mot de passe",
+  "save": "Sauvegarder",
+
+  "back": "Retour",
+  "passenger_added_success": "Passager ajouté avec succès"
+}

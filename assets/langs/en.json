@@ -1,0 +1,55 @@
+{
+  "title": "Driver Dashboard",
+  "passenger_count": "Number of passengers",
+  "scan_qr": "Scan QR code",
+  "add_passenger": "Add passenger",
+  "history": "History",
+  "view_prev_month": "View previous month",
+  "export_pdf": "Export PDF report",
+  "statistics": "Statistics", 
+
+  "menu": "Menu",
+  "driver": "Driver",
+  "owner": "Owner",
+  "my_cars": "My cars",
+  "contact_us": "Contact us",
+
+  "change_language": "Change language",
+  "manage_subscription": "Manage my subscription",
+  "add_car": "Add a car",
+  "password": "Password",
+  "logout": "Log out",
+
+  "add_car_title": "Add a car",
+  "name_label": "Name",
+  "brand_label": "Car brand",
+  "plate_label": "License plate",
+  "add_button": "Add",
+
+  "subscription": "SUBSCRIPTION",
+  "per_month": "€/month",
+  "monthly": "Monthly",
+  "yearly": "Yearly",
+  "choose": "Choose",
+  "cancel": "Cancel",
+  "smart_qr": "Smart QR code",
+  "app_access": "Access to Suivi Taxi",
+  "next_debit": "Next debit",
+
+  "payment": "Payment",
+  "amount_to_pay": "Amount to pay",
+  "choose_payment_method": "Choose a payment method",
+  "bank_card": "Bank card (Visa, Mastercard)",
+  "cinetpay": "CinetPay",
+  "paypal": "PayPal",
+  "manual_bank": "Manual bank transfer",
+
+  "change_password": "Change password",
+  "old_password": "Old password",
+  "new_password": "New password",
+  "confirm_password": "Confirm password",
+  "save": "Save",
+
+  "back": "Back",
+  "passenger_added_success": "Passenger added successfully"
+}

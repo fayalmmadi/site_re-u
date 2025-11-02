@@ -1,0 +1,54 @@
+{
+  "title": "Panel del conductor",
+  "passenger_count": "Número de pasajeros",
+  "scan_qr": "Escanear código QR",
+  "add_passenger": "Agregar pasajero",
+  "history": "Historial",
+  "view_prev_month": "Ver mes anterior",
+  "export_pdf": "Exportar informe PDF",
+
+  "menu": "Menú",
+  "driver": "Conductor",
+  "owner": "Propietario",
+  "my_cars": "Mis coches",
+  "contact_us": "Contáctanos",
+
+  "change_language": "Cambiar idioma",
+  "manage_subscription": "Gestionar mi suscripción",
+  "add_car": "Añadir un coche",
+  "password": "Contraseña",
+  "logout": "Cerrar sesión",
+
+  "add_car_title": "Añadir un coche",
+  "name_label": "Nombre",
+  "brand_label": "Marca del coche",
+  "plate_label": "Matrícula",
+  "add_button": "Añadir",
+
+  "subscription": "SUSCRIPCIÓN",
+  "per_month": "€/mes",
+  "monthly": "Mensual",
+  "yearly": "Anual",
+  "choose": "Elegir",
+  "cancel": "Cancelar",
+  "smart_qr": "Código QR inteligente",
+  "app_access": "Acceso a Suivi Taxi",
+  "next_debit": "Próximo cobro",
+
+  "payment": "Pago",
+  "amount_to_pay": "Monto a pagar",
+  "choose_payment_method": "Elige un método de pago",
+  "bank_card": "Tarjeta bancaria (Visa, Mastercard)",
+  "cinetpay": "CinetPay",
+  "paypal": "PayPal",
+  "manual_bank": "Transferencia bancaria manual",
+
+  "change_password": "Cambiar contraseña",
+  "old_password": "Contraseña anterior",
+  "new_password": "Nueva contraseña",
+  "confirm_password": "Confirmar contraseña",
+  "save": "Guardar",
+
+  "back": "Atrás",
+  "passenger_added_success": "Pasajero añadido correctamente"
+}

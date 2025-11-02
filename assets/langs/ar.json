@@ -1,0 +1,54 @@
+{
+  "title": "لوحة السائق",
+  "passenger_count": "عدد الركاب",
+  "scan_qr": "مسح رمز QR",
+  "add_passenger": "إضافة راكب",
+  "history": "السجل",
+  "view_prev_month": "عرض الشهر السابق",
+  "export_pdf": "تصدير تقرير PDF",
+
+  "menu": "القائمة",
+  "driver": "السائق",
+  "owner": "المالك",
+  "my_cars": "سياراتي",
+  "contact_us": "اتصل بنا",
+
+  "change_language": "تغيير اللغة",
+  "manage_subscription": "إدارة اشتراكي",
+  "add_car": "إضافة سيارة",
+  "password": "كلمة المرور",
+  "logout": "تسجيل الخروج",
+
+  "add_car_title": "إضافة سيارة",
+  "name_label": "الاسم",
+  "brand_label": "ماركة السيارة",
+  "plate_label": "رقم اللوحة",
+  "add_button": "إضافة",
+
+  "subscription": "الاشتراك",
+  "per_month": "€‎/شهريًا",
+  "monthly": "شهري",
+  "yearly": "سنوي",
+  "choose": "اختيار",
+  "cancel": "إلغاء",
+  "smart_qr": "رمز QR ذكي",
+  "app_access": "الوصول إلى Suivi Taxi",
+  "next_debit": "الاقتطاع القادم",
+
+  "payment": "الدفع",
+  "amount_to_pay": "المبلغ المستحق",
+  "choose_payment_method": "اختر طريقة الدفع",
+  "bank_card": "بطاقة بنكية (Visa, Mastercard)",
+  "cinetpay": "CinetPay",
+  "paypal": "PayPal",
+  "manual_bank": "تحويل بنكي يدوي",
+
+  "change_password": "تغيير كلمة المرور",
+  "old_password": "كلمة المرور القديمة",
+  "new_password": "كلمة المرور الجديدة",
+  "confirm_password": "تأكيد كلمة المرور",
+  "save": "حفظ",
+
+  "back": "رجوع",
+  "passenger_added_success": "تمت إضافة الراكب بنجاح"
+}

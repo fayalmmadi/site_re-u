@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta name="description" content="Application Suivi Taxis – livraisons et mobilité urbaine.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Suivi Taxis">
+  <meta name="theme-color" content="#0A8F3E">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Google Maps AVANT Flutter -->
+  <script>
+    window.__gmapsLoaded = false;
+    function __initFlutterMaps() {
+      window.__gmapsLoaded = true;
+      console.log("✅ Google Maps API chargée");
+    }
+  </script>
+  <!-- Mets bien TA clé -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6ajGK9iQv0tLeFdnRMfqrjL95yOhG_fg&libraries=places&callback=__initFlutterMaps"></script>
+
+  <!-- Flutter après Maps -->
+  <script src="flutter.js" defer></script>
+</head>
+<body>
+  <!-- Boot compatible Flutter 3.8.x -->
+  <script>
+    window.addEventListener('load', function () {
+      _flutter.loader.loadEntrypoint({
+        onEntrypointLoaded: function (engineInitializer) {
+          engineInitializer.initializeEngine().then(function (appRunner) {
+            appRunner.runApp();
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,54 @@
+{
+  "title": "Sürücü Paneli",
+  "passenger_count": "Yolcu sayısı",
+  "scan_qr": "QR kodu tara",
+  "add_passenger": "Yolcu ekle",
+  "history": "Geçmiş",
+  "view_prev_month": "Önceki ayı görüntüle",
+  "export_pdf": "PDF raporu dışa aktar",
+
+  "menu": "Menü",
+  "driver": "Sürücü",
+  "owner": "Sahip",
+  "my_cars": "Arabalarım",
+  "contact_us": "Bize ulaşın",
+
+  "change_language": "Dili değiştir",
+  "manage_subscription": "Aboneliğimi yönet",
+  "add_car": "Araba ekle",
+  "password": "Parola",
+  "logout": "Çıkış yap",
+
+  "add_car_title": "Araba ekle",
+  "name_label": "Ad",
+  "brand_label": "Araba markası",
+  "plate_label": "Plaka",
+  "add_button": "Ekle",
+
+  "subscription": "ABONELİK",
+  "per_month": "€/ay",
+  "monthly": "Aylık",
+  "yearly": "Yıllık",
+  "choose": "Seç",
+  "cancel": "İptal et",
+  "smart_qr": "Akıllı QR kod",
+  "app_access": "Suivi Taxi erişimi",
+  "next_debit": "Sonraki çekim",
+
+  "payment": "Ödeme",
+  "amount_to_pay": "Ödenecek tutar",
+  "choose_payment_method": "Ödeme yöntemi seçin",
+  "bank_card": "Banka kartı (Visa, Mastercard)",
+  "cinetpay": "CinetPay",
+  "paypal": "PayPal",
+  "manual_bank": "Manuel banka havalesi",
+
+  "change_password": "Parolayı değiştir",
+  "old_password": "Eski parola",
+  "new_password": "Yeni parola",
+  "confirm_password": "Parolayı doğrula",
+  "save": "Kaydet",
+
+  "back": "Geri",
+  "passenger_added_success": "Yolcu başarıyla eklendi"
+}

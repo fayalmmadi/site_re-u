@@ -1,0 +1,54 @@
+{
+  "title": "司机面板",
+  "passenger_count": "乘客数量",
+  "scan_qr": "扫描二维码",
+  "add_passenger": "添加乘客",
+  "history": "历史记录",
+  "view_prev_month": "查看上个月",
+  "export_pdf": "导出 PDF 报告",
+
+  "menu": "菜单",
+  "driver": "司机",
+  "owner": "车主",
+  "my_cars": "我的车辆",
+  "contact_us": "联系我们",
+
+  "change_language": "切换语言",
+  "manage_subscription": "管理订阅",
+  "add_car": "添加车辆",
+  "password": "密码",
+  "logout": "退出登录",
+
+  "add_car_title": "添加车辆",
+  "name_label": "名称",
+  "brand_label": "车辆品牌",
+  "plate_label": "车牌号",
+  "add_button": "添加",
+
+  "subscription": "订阅",
+  "per_month": "€/月",
+  "monthly": "按月",
+  "yearly": "按年",
+  "choose": "选择",
+  "cancel": "取消",
+  "smart_qr": "智能二维码",
+  "app_access": "访问 Suivi Taxi",
+  "next_debit": "下次扣款",
+
+  "payment": "支付",
+  "amount_to_pay": "应付金额",
+  "choose_payment_method": "选择付款方式",
+  "bank_card": "银行卡（Visa、Mastercard）",
+  "cinetpay": "CinetPay",
+  "paypal": "PayPal",
+  "manual_bank": "手动银行转账",
+
+  "change_password": "修改密码",
+  "old_password": "旧密码",
+  "new_password": "新密码",
+  "confirm_password": "确认密码",
+  "save": "保存",
+
+  "back": "返回",
+  "passenger_added_success": "乘客添加成功"
+}
